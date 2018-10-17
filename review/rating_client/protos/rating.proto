@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package rating;
+
+// The greeting service definition.
+service Rating {
+  // request an advertisement info
+  rpc GetRate (ReviewInfo) returns (Rate) {}
+}
+
+// The request message containing the user's name.
+message ReviewInfo {
+  int32 review_id = 1;
+}
+
+message Rate {
+  int32 review_id = 1;
+  int32 maximum = 2;
+  int32 current = 3;
+}
+

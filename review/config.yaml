@@ -1,0 +1,10 @@
+srvPort: ":7100"
+db:
+  type: "mysql"
+  user: "testdbuser"
+  password: "testdbpw"
+  protocol: "tcp(127.0.0.1:3306)"
+  name: "review"
+rating: 
+  endpoint: "localhost:7000"
+  timeout: "2"

@@ -1,0 +1,7 @@
+srvPort: ":7200"
+db:
+  type: "mysql"
+  user: "testdbuser"
+  password: "testdbpw"
+  protocol: "tcp(127.0.0.1:3306)"
+  name: "advertisement"
