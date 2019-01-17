@@ -10,6 +10,7 @@ import (
     _ "github.com/jinzhu/gorm/dialects/mysql"
     "golang.org/x/net/context"
     "google.golang.org/grpc"
+    "google.golang.org/grpc/metadata"
     "google.golang.org/grpc/reflection"
     "github.com/spf13/viper"
 
@@ -43,12 +44,12 @@ type server struct{
     ratingTimeout int
 }
 
-func buildReviewMessages(reviews []Review, ratingService string, timeoutSecond int) (*pb.ReviewMessages, error) {
+func buildReviewMessages(reviews []Review, ratingService string, timeoutSecond int, tracingHeaders map[string]string) (*pb.ReviewMessages, error) {
     var msgs []*pb.ReviewMessage
 
     //bad implementation, should use a bulk get
     for _, review := range reviews {
-        result, err := rating_client.GetRate(ratingService, timeoutSecond, int32(review.ID))
+        result, err := rating_client.GetRate(ratingService, timeoutSecond, int32(review.ID), tracingHeaders)
         if err != nil {
             log.Println(err.Error())
         }
@@ -75,6 +76,29 @@ func buildReviewMessages(reviews []Review, ratingService string, timeoutSecond i
     }, nil
 }
 
+//extract headers used for tracing
+func extractTracingHeaders(ctx *context.Context) (tracingHeaders map[string]string) {
+    targetHeaders := []string{
+        "x-request-id",
+        "x-b3-traceid",
+        "x-b3-spanid",
+        "x-b3-parentspanid",
+        "x-b3-sampled",
+        "x-b3-flags",
+        "x-ot-span-context",
+    }
+    tracingHeaders = make(map[string]string)
+    md, ok := metadata.FromIncomingContext(*ctx)
+    if ok {
+        for _, value := range targetHeaders {
+            _, ok := md[value]
+            if ok {
+                tracingHeaders[value] = md[value][0]
+            }
+        }
+    }
+    return
+}
 
 func (s *server) GetMostHelpfulReviews(ctx context.Context, in *pb.ProductInfo) (*pb.ReviewMessages, error) {
     db, err := s.gormConnect()
@@ -85,7 +109,8 @@ func (s *server) GetMostHelpfulReviews(ctx context.Context, in *pb.ProductInfo) 
 
     var reviews []Review
     db.Where("product_id = ?", in.ProductId).Find(&reviews)
-    result, err := buildReviewMessages(reviews, s.ratingEndpoint, s.ratingTimeout)
+   
+    result, err := buildReviewMessages(reviews, s.ratingEndpoint, s.ratingTimeout, extractTracingHeaders(&ctx))
     if (err != nil) {
         log.Println(err.Error())
     }
